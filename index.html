@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C System Call Quiz</title>
+    <title>C System Call Master Quiz</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -23,12 +23,48 @@
             max-width: 600px;
             padding: 2rem;
             box-sizing: border-box;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
         }
-        h1 {
+        h1, h2 {
             text-align: center;
-            color: #333;
+            color: #2c3e50;
             margin-top: 0;
         }
+        
+        /* Menu Styles */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .menu-btn {
+            padding: 20px;
+            font-size: 1.1rem;
+            background-color: #fff;
+            border: 2px solid #007bff;
+            color: #007bff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-weight: bold;
+        }
+        .menu-btn:hover {
+            background-color: #007bff;
+            color: white;
+        }
+        .menu-desc {
+            font-size: 0.85rem;
+            font-weight: normal;
+            display: block;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        /* Quiz Styles */
         .progress {
             text-align: right;
             color: #666;
@@ -41,6 +77,7 @@
             margin-bottom: 1.5rem;
             line-height: 1.5;
             color: #2c3e50;
+            flex-grow: 1;
         }
         .options {
             display: flex;
@@ -77,6 +114,11 @@
             border-radius: 8px;
             background-color: #e9ecef;
             display: none;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .feedback-title {
             font-weight: bold;
@@ -92,9 +134,10 @@
             display: block;
             font-size: 0.9em;
             color: #555;
+            word-break: break-all;
         }
-        .next-btn {
-            display: none;
+        .action-btn {
+            display: block;
             width: 100%;
             padding: 15px;
             margin-top: 20px;
@@ -105,111 +148,155 @@
             font-size: 1.1rem;
             cursor: pointer;
         }
-        .next-btn:hover {
+        .action-btn:hover {
             background-color: #0056b3;
         }
+        .secondary-btn {
+            background-color: #6c757d;
+            margin-top: 10px;
+        }
+        .secondary-btn:hover {
+            background-color: #5a6268;
+        }
+
+        /* Result Styles */
         .result-container {
             text-align: center;
-            display: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
         }
         .score {
-            font-size: 2rem;
+            font-size: 3rem;
             font-weight: bold;
             color: #007bff;
             margin: 20px 0;
+        }
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="quiz-view">
-        <div class="progress">Question <span id="current-q">1</span> / <span id="total-q">10</span></div>
-        <div class="question" id="question-text">ここに問題が表示されます</div>
-        <div class="options" id="options-container">
-            </div>
+    
+    <div id="menu-view">
+        <h1>C System Call Quiz</h1>
+        <p style="text-align:center; color:#666;">挑戦したいレベル（Batch）を選択してください</p>
+        <div class="menu-grid">
+            <button class="menu-btn" onclick="startQuiz(0)">
+                Level 1: 基本 & プロセス制御
+                <span class="menu-desc">Pipe, Fork, Exec, Zombie, COW の基本動作</span>
+            </button>
+            <button class="menu-btn" onclick="startQuiz(1)">
+                Level 2: シグナル & 詳細仕様
+                <span class="menu-desc">Blocking, SIGPIPE, dup2の挙動, ゾンビ回収</span>
+            </button>
+            <button class="menu-btn" onclick="startQuiz(2)">
+                Level 3: 応用 & プロセスグループ
+                <span class="menu-desc">PGID, Session, lseekエラー, ファイルオフセット共有</span>
+            </button>
+            <button class="menu-btn" onclick="startQuiz(3)">
+                Level 4: バッファ & メモリ & 落とし穴
+                <span class="menu-desc">stdioバッファ, mallocとfork, errno, 原子性</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="quiz-view" class="hidden">
+        <div class="progress">Batch <span id="batch-label">1</span> - Q <span id="current-q">1</span> / <span id="total-q">10</span></div>
+        <div class="question" id="question-text">Question here</div>
+        <div class="options" id="options-container"></div>
+        
         <div class="feedback" id="feedback">
             <span class="feedback-title" id="feedback-title"></span>
             <span id="feedback-text"></span>
             <div class="hint" id="feedback-hint"></div>
         </div>
-        <button class="next-btn" id="next-btn" onclick="nextQuestion()">Next Question</button>
+        
+        <button class="action-btn hidden" id="next-btn" onclick="nextQuestion()">Next Question</button>
     </div>
 
-    <div id="result-view" class="result-container">
+    <div id="result-view" class="hidden result-container">
         <h2>Result</h2>
         <div class="score">Score: <span id="score-val">0</span> / <span id="score-total">0</span></div>
-        <p id="result-message"></p>
-        <button class="next-btn" style="display:block" onclick="location.reload()">Retry</button>
+        <p id="result-message" style="font-size: 1.2rem;"></p>
+        <button class="action-btn" onclick="initMenu()">メニューに戻る</button>
+        <button class="action-btn secondary-btn" onclick="retryQuiz()">同じ問題をやり直す</button>
     </div>
+
 </div>
 
 <script>
-    // ここにクイズデータを入れます
-    const quizData = [
-        {
-            q: "dup2(oldfd, newfd) において、oldfdとnewfdの値が同じだった場合、どうなる？",
-            options: ["エラーを返す", "何もしないでnewfdを返す", "newfdを一度閉じてから開く", "未定義動作"],
-            correct: 1,
-            rationale: "dup2の特殊な挙動で、自己代入の場合は何もしません。",
-            hint: "man 2 dup2: 'If oldfd is a valid file descriptor, and newfd has the same value as oldfd, then dup2() does nothing...'"
-        },
-        {
-            q: "読み込み側が全て閉じたパイプに対して write() を行うとどうなる？",
-            options: ["writeが待機する", "データが破棄される", "SIGPIPEシグナルが発生する", "エラーコードEAGAINが返る"],
-            correct: 2,
-            rationale: "読み手がいないパイプへの書き込みはプロセスを終了させるSIGPIPEを発生させます。",
-            hint: "man 7 pipe: '...a write(2) will cause a SIGPIPE signal to be generated.'"
-        },
-        {
-            q: "fork() が失敗した場合、親プロセスに返される値は？",
-            options: ["0", "-1", "NULL", "子プロセスのPID"],
-            correct: 1,
-            rationale: "失敗時、子プロセスは作られず、親には -1 が返されます。",
-            hint: "man 2 fork: 'On failure, -1 is returned in the parent...'"
-        },
-        {
-            q: "パイプへの書き込みがアトミック（混ざらない）であることが保証される最大サイズは？",
-            options: ["BUFSIZ", "4096バイト (PIPE_BUF)", "65536バイト", "無制限"],
-            correct: 1,
-            rationale: "PIPE_BUF (Linuxでは通常4096バイト) 以下の書き込みはアトミック性が保証されます。",
-            hint: "man 7 pipe: 'POSIX.1 requires that writes of less than PIPE_BUF bytes must be atomic...'"
-        },
-        {
-            q: "execve() 成功時、プロセスID (PID) はどうなる？",
-            options: ["新しいIDになる", "変更されない", "親と同じになる", "0になる"],
-            correct: 1,
-            rationale: "execはプログラムの中身を入れ替えるだけで、プロセスの器（PID）は変わりません。",
-            hint: "man 3 exec: 'The process ID is preserved.'"
-        },
-        {
-            q: "fork() 直後、ファイルディスクリプタの FD_CLOEXEC フラグはどうなる？",
-            options: ["クリアされる", "常にセットされる", "継承される", "未定義"],
-            correct: 2,
-            rationale: "forkはファイルディスクリプタの状態（フラグ含む）を複製して継承します。",
-            hint: "man 2 fork: 'The close-on-exec flag (FD_CLOEXEC) ... is preserved across a fork(2).'"
-        },
-        {
-            q: "waitpid() で WNOHANG を指定した場合の動作は？",
-            options: ["子が終了するまで待つ", "子を強制終了する", "子が終了してなければ即座に0を返して戻る", "エラーになる"],
-            correct: 2,
-            rationale: "WNOHANGはブロックせずに即座に戻るためのオプションです。",
-            hint: "man 2 wait: 'WNOHANG: return immediately if no child has exited.'"
-        },
-        {
-            q: "Linux 2.6.11以降のデフォルトのパイプ容量は？",
-            options: ["4KB", "16KB", "64KB", "無制限"],
-            correct: 2,
-            rationale: "16ページ分、つまり65,536バイト (64KB) がデフォルトです。",
-            hint: "man 7 pipe: 'pipe capacity is 16 pages...'"
-        }
+    // === DATA SOURCE ===
+    const batch1 = [
+        { q: "書き込み側が開いているがデータが空のパイプに対して read() を行うとどうなる？（O_NONBLOCKなし）", options: ["0を返す（EOF）", "エラー（-1）を返す", "データが来るまでブロック（待機）する", "未定義動作"], correct: 2, rationale: "書き手がいる限り、データが来る可能性があるため、読み込み側はデータが到着するか書き手が閉じるまで待機します。", hint: "man 2 read: 'If the pipe is empty... read() blocks until data is written.'" },
+        { q: "書き込み側が全て閉じられたパイプに対して read() を行うとどうなる？", options: ["0を返す（EOF）", "エラー（-1）を返す", "ブロックする", "SIGPIPEが発生する"], correct: 0, rationale: "書き手が誰もいなくなると、パイプは「ファイル終了（EOF）」扱いとなり、readは0を返します。これがループ終了の条件になります。", hint: "man 7 pipe: 'If all file descriptors referring to the write end... are closed, then read(2) returns 0.'" },
+        { q: "子プロセスが終了したが、親プロセスがまだ wait() していない状態のプロセスを何と呼ぶ？", options: ["オーファン（孤児）プロセス", "ゾンビプロセス", "デーモンプロセス", "スリーピングプロセス"], correct: 1, rationale: "終了ステータスを親が回収するまで、プロセスエントリだけが残った状態をゾンビプロセスと呼びます。", hint: "man 2 wait: 'A child that terminates, but has not yet been waited for, becomes a zombie.'" },
+        { q: "execve() を実行した際、FD_CLOEXECフラグがセットされているファイルディスクリプタはどうなる？", options: ["開かれたまま継承される", "自動的に閉じられる", "複製される", "エラーになる"], correct: 1, rationale: "FD_CLOEXEC (Close-On-Exec) は、その名の通り exec 成功時に自動的にクローズするためのフラグです。", hint: "man 2 open: 'O_CLOEXEC... The file descriptor will automatically be closed during a successful execve(2).'" },
+        { q: "fork() のメモリ複製において「コピーオンライト (COW)」とはどのような挙動か？", options: ["即座に全メモリをコピーする", "親のメモリを共有し、書き込みが発生したページだけコピーする", "スタックのみコピーしヒープは共有する", "子プロセスはメモリを持たない"], correct: 1, rationale: "パフォーマンス向上のため、最初は物理メモリを共有し、どちらかがデータを書き換えた瞬間だけそのページを複製します。", hint: "man 2 fork: '...copy-on-write pages.'" },
+        { q: "標準ライブラリの exit() とシステムコールの _exit() の決定的な違いは？", options: ["終了ステータスの範囲", "バッファ（stdio）のフラッシュを行うかどうか", "親プロセスへの通知方法", "違いはない"], correct: 1, rationale: "exit() は終了前にstdioバッファ（printfの中身など）をフラッシュしますが、_exit() は即座にカーネルに戻ります。", hint: "man 3 exit: 'The function _exit() terminates... file descriptors... are not flushed.'" },
+        { q: "dup(oldfd) は、新しいファイルディスクリプタ番号として何を使う？", options: ["oldfd + 1", "現在使用可能な最小の番号", "ランダムな番号", "常に3"], correct: 1, rationale: "dup系は常に「現在開いていない最小の整数」を割り当てます。", hint: "man 2 dup: 'The new file descriptor uses the lowest-numbered unused file descriptor...'" },
+        { q: "親プロセスが wait() せずに先に終了してしまった場合、残された子プロセス（孤児）の親は誰になる？", options: ["消滅する", "initプロセス (PID 1) または subreaper", "シェル", "カーネル"], correct: 1, rationale: "親を失ったプロセスは init（最近のLinuxではsystemdなど）養子に出され、そこでwaitが行われます。", hint: "man 2 exit: 'Orphaned children ... are adopted by init(1)...'" },
+        { q: "waitpid() の第一引数に -1 を指定した場合の意味は？", options: ["プロセスグループIDが1の子を待つ", "特定の子プロセスを待たない（任意の子プロセスを待つ）", "エラーチェックのみ行う", "親プロセス自身を待つ"], correct: 1, rationale: "pid < -1, pid == -1, pid == 0, pid > 0 で挙動が異なります。-1は wait() と同じく「誰でもいいから終わるのを待つ」挙動です。", hint: "man 2 wait: 'waitpid(-1, &status, 0) is equivalent to wait(&status).'" },
+        { q: "pipe() で作成されるファイルディスクリプタの性質として正しいものは？（Linuxにおいて）", options: ["双方向通信が可能", "単方向（一方向）通信のみ", "ネットワーク越しに使用可能", "シーク（lseek）が可能"], correct: 1, rationale: "標準的なパイプは単方向です。読み込み端と書き込み端が明確に分かれています。", hint: "man 7 pipe: 'Pipes and FIFOs ... are purely unidirectional I/O channels.'" }
     ];
 
-    let currentIdx = 0;
+    const batch2 = [
+        { q: "パイプのバッファが満杯の状態で write() を行うとどうなる？（O_NONBLOCKなし）", options: ["データが捨てられる", "エラー(EAGAIN)が返る", "書き込みスペースが空くまでブロックする", "バッファが自動拡張される"], correct: 2, rationale: "読み手がデータを読んでスペースを空けるまで、書き込みプロセスはスリープ（ブロック）させられます。", hint: "man 7 pipe: 'If the pipe is full, then write(2) blocks...'" },
+        { q: "子プロセスが停止（Stop）または終了した時に親プロセスに送られるシグナルは？", options: ["SIGPIPE", "SIGCHLD", "SIGTERM", "SIGUSR1"], correct: 1, rationale: "カーネルは子プロセスの状態変化時に SIGCHLD を親に送ります。", hint: "man 7 signal: 'SIGCHLD: Child stopped or terminated.'" },
+        { q: "dup2(oldfd, newfd) において、newfd が既に開かれていた場合どうなる？", options: ["エラーになる", "暗黙的に close(newfd) されてから複製される", "newfd の内容は保持される", "未定義動作"], correct: 1, rationale: "dup2は指定されたnewfdを使おうとします。もし使用中なら、まずそれを閉じてから複製を行います。", hint: "man 2 dup2: 'If newfd was open... close(2) are lost.'" },
+        { q: "open() したファイルを unlink() で削除した場合、そのFDを持っているプロセスからのアクセスはどうなる？", options: ["即座にエラー(EBADF)になる", "FDを閉じるまで読み書き可能", "読み込みのみ可能", "プロセスが強制終了する"], correct: 1, rationale: "Unixファイルシステムの有名な挙動です。ディレクトリエントリは消えますが、inodeとデータは保持されます。", hint: "man 2 unlink: 'the file will remain in existence...'" },
+        { q: "vfork() と fork() の主な違いは？", options: ["vforkは親プロセスをコピーしない（メモリ共有）", "vforkは別スレッドを作る", "vforkはファイルディスクリプタを共有しない", "vforkはシグナルを受け取らない"], correct: 0, rationale: "vforkは親のページテーブルをコピーせず、execか_exitするまで親のメモリ空間を借用し、その間親をブロックします。", hint: "man 2 vfork" },
+        { q: "wait系のマクロ WIFEXITED(status) が真になるのはいつ？", options: ["シグナルで終了した時", "正常に exit() や mainからのreturn で終了した時", "一時停止した時", "再開した時"], correct: 1, rationale: "終了ステータスを検査するマクロです。異常終了（シグナル死）と区別するために重要です。", hint: "man 2 wait" },
+        { q: "標準入力、標準出力、標準エラー出力に対応するファイルディスクリプタ番号の組み合わせは？", options: ["1, 2, 3", "0, 1, 2", "-1, 0, 1", "任意"], correct: 1, rationale: "基本中の基本ですが、pipe処理で dup2(fd, 1) のように定数を使う際に必須の知識です。", hint: "man 3 stdin" },
+        { q: "Linuxにおいて、シグナルハンドラ内で使用しても安全な（非同期シグナルセーフな）関数はどれ？", options: ["printf()", "malloc()", "write()", "exit()"], correct: 2, rationale: "printfやmallocはロックを使うため安全ではありません。writeは安全です。", hint: "man 7 signal-safety" },
+        { q: "プロセスが fork() する際、親プロセスが開いていたディレクトリ（opendir等）はどうなる？", options: ["子プロセスにも継承される", "子プロセスでは閉じられる", "子プロセスではリセットされる", "エラーになる"], correct: 0, rationale: "ディレクトリストリームも内部的にはFDを持っていますが、fork時は親のファイルオフセットごと継承されます。", hint: "man 2 fork" },
+        { q: "system() 関数と exec() 系の関数の最大の違いは？", options: ["systemはシェル経由でコマンドを実行し戻ってくる", "systemはプロセスを置換する", "systemはバックグラウンドで実行する", "systemはroot権限で実行する"], correct: 0, rationale: "execは自分自身を書き換えますが、systemは内部で fork -> exec('/bin/sh', ...) -> wait を行い、呼び出し元に戻ってきます。", hint: "man 3 system" }
+    ];
+
+    const batch3 = [
+        { q: "fork() した際、親と子で共有されるファイルオフセット（読み書きの位置）はどうなる？", options: ["共有される（親が読むと子の位置も進む）", "共有されない（独立している）", "0にリセットされる", "読み込みのみ共有される"], correct: 0, rationale: "ファイル構造体（file description）は共有されるため、親が read() で進めた位置は、子プロセスにも即座に反映されます。", hint: "man 2 fork: 'The file offset is shared between the parent and child.'" },
+        { q: "setpgid(0, 0) を実行するとどうなる？", options: ["エラーになる", "呼び出したプロセスのPGIDが、そのPIDと同じになる", "ルート権限を取得する", "プロセスグループから脱退する"], correct: 1, rationale: "引数が0の場合、現在のプロセスPIDが使われます。つまり「自分がリーダーとなる新しいプロセスグループを作る」動作です。", hint: "man 2 setpgid" },
+        { q: "補足できない（ハンドラを設定できない）シグナルの組み合わせは？", options: ["SIGINT と SIGTERM", "SIGKILL と SIGSTOP", "SIGSEGV と SIGBUS", "SIGHUP と SIGPIPE"], correct: 1, rationale: "SIGKILL（強制終了）と SIGSTOP（一時停止）は、カーネルが強制的に処理するため、プログラム側で無視や捕捉ができません。", hint: "man 7 signal" },
+        { q: "waitpid(-pgid, &status, 0) のように、第一引数に負の値を指定した場合の意味は？", options: ["エラーになる", "その絶対値のPIDを持つプロセスを待つ", "プロセスグループIDが |pgid| である子プロセス群のどれかを待つ", "親プロセスより若いPIDを待つ"], correct: 2, rationale: "負の値は「プロセスグループ」指定です。", hint: "man 2 wait" },
+        { q: "パイプに対して lseek() を実行しようとすると、errno には何がセットされる？", options: ["EINVAL", "ESPIPE", "EIO", "ENOTTY"], correct: 1, rationale: "パイプはストリームであり、シーク（位置移動）はできません。専用のエラーコード ESPIPE が返ります。", hint: "man 2 lseek" },
+        { q: "すでに close されているファイルディスクリプタを再度 close() するとどうなる？", options: ["何もしない（成功扱い）", "プロセスがクラッシュする", "-1を返し、errnoにEBADFを設定する", "未定義動作"], correct: 2, rationale: "二重クローズはバグの兆候です。必ずエラーチェックを行うべきです。", hint: "man 2 close" },
+        { q: "exec関数群の中で、環境変数（environ）を現在のプロセスから自動的に引き継がないのは？", options: ["execlp", "execvp", "execv", "execve"], correct: 3, rationale: "execve はシステムコールそのもので、環境変数を配列として明示的に渡す必要があります。", hint: "man 2 execve" },
+        { q: "O_APPEND フラグ付きで open したファイルに複数プロセスが書き込む場合、競合はどうなる？", options: ["データが混ざる可能性がある", "OSが原子性（アトミック）を保証するため混ざらない", "後から書いた方がエラーになる", "ロックしないと必ず壊れる"], correct: 1, rationale: "O_APPEND モードは、ファイル末尾への移動と書き込みがアトミックに行われます。", hint: "man 2 open: 'atomic.'" },
+        { q: "子プロセス内で exit(0) するのと return 0 するのの主な違いは？（main関数内）", options: ["違いはない", "returnは再帰的に親を呼ぶ", "exitはクリーンアップが走るがreturnは走らない", "returnはスタック解放のみ"], correct: 0, rationale: "main関数の中であれば、`return n;` は `exit(n);` と同等です（C99規格）。", hint: "C Standard" },
+        { q: "kill(0, SIGINT) を実行すると、シグナルはどこに送られる？", options: ["PID 0 (swapper)", "全プロセス", "自分と同じプロセスグループに属する全プロセス", "自分自身のみ"], correct: 2, rationale: "killのpid 0は「カレントプロセスグループへのブロードキャスト」を意味します。", hint: "man 2 kill" }
+    ];
+
+    const batch4 = [
+        { q: "printf('Hello'); fork(); とした場合（改行なし）、出力はどうなる可能性が高い？", options: ["Hello が1回だけ", "HelloHello と2回", "何も出ない", "エラー"], correct: 1, rationale: "改行がないとバッファに留まります。fork時にバッファごとコピーされ、親と子の終了時にそれぞれフラッシュされるため2回出ます。", hint: "fork duplicates the exact state of the buffer." },
+        { q: "WEXITSTATUS(status) マクロを使う前に、必ずチェックすべきマクロは？", options: ["WIFSTOPPED", "WIFSIGNALED", "WIFEXITED", "WCOREDUMP"], correct: 2, rationale: "シグナルで死んだ場合、終了コードは無意味です。正常終了したか `WIFEXITED` で確認するのが定石です。", hint: "man 2 wait" },
+        { q: "malloc() で確保したメモリ領域にあるデータは、fork() 後どうなる？", options: ["子では解放", "親と子で物理メモリ共有（変更反映）", "論理的に複製され独立する", "子では0初期化"], correct: 2, rationale: "ヒープ領域もスタック同様に複製（COW）されます。ポインタ値は同じでも物理メモリは別物です。", hint: "man 2 fork" },
+        { q: "atexit() で登録した関数は、_exit() で終了した場合に実行される？", options: ["実行される", "実行されない", "OSによる", "親のみ実行"], correct: 1, rationale: "`_exit()` はシステムコール直結で、ライブラリレベルのクリーンアップ（atexit等）をバイパスします。", hint: "man 2 _exit" },
+        { q: "read(fd, buf, 100) が 50 を返した場合の意味は？", options: ["エラー", "EOF", "50バイト読み込めた（正常）", "破棄された"], correct: 2, rationale: "readは要求サイズより少なく読むことが頻繁にあります。", hint: "man 2 read" },
+        { q: "シグナルハンドラ内で errno を変更してしまうと、メイン処理にどんな悪影響がある？", options: ["影響ない", "メイン処理のerrnoチェックが誤動作する", "プロセス停止", "SEGV"], correct: 1, rationale: "ハンドラ内で `write` 等をして `errno` を書き換えると、メイン処理が誤ったエラー原因を参照してしまいます。", hint: "Save and restore errno." },
+        { q: "ゾンビプロセスが大量に発生してPIDを使い切るとどうなる？", options: ["古い順に消える", "新しいプロセスが作れなくなる", "システムパニック", "親が強制終了"], correct: 1, rationale: "PIDテーブルが埋まると `fork()` が `EAGAIN` で失敗します。", hint: "man 2 fork" },
+        { q: "PIPE_BUF（通常4KB）より大きなデータを一度に write() した場合の原子性は？", options: ["保証される", "保証されない（混ざる可能性あり）", "エラー", "最初の4KBだけ書かれる"], correct: 1, rationale: "PIPE_BUFを超える書き込みは、カーネルによって分割される可能性があります。", hint: "man 7 pipe" },
+        { q: "子プロセスから親へ単純な整数（終了状態）を渡す最も標準的な方法は？", options: ["グローバル変数", "exit() の引数と wait()", "共有メモリ", "一時ファイル"], correct: 1, rationale: "`exit(n)` すれば、親は `wait` して `WEXITSTATUS` で `n` を受け取れます（0-255）。", hint: "man 3 exit" },
+        { q: "fcntl(fd, F_SETFL, O_NONBLOCK) の役割は？", options: ["FDを閉じる", "読み込み専用にする", "ノンブロッキングモードに変更", "FDを複製"], correct: 2, rationale: "読み込みで止まってほしくない場合に使います。", hint: "man 2 fcntl" }
+    ];
+
+    const quizBatches = [batch1, batch2, batch3, batch4];
+
+    // === STATE ===
+    let currentBatchIdx = 0;
+    let currentQuizData = [];
+    let currentQIdx = 0;
     let score = 0;
 
+    // === DOM ELEMENTS ===
+    const menuView = document.getElementById('menu-view');
     const quizView = document.getElementById('quiz-view');
     const resultView = document.getElementById('result-view');
+    
+    const batchLabel = document.getElementById('batch-label');
     const questionText = document.getElementById('question-text');
     const optionsContainer = document.getElementById('options-container');
     const feedback = document.getElementById('feedback');
@@ -220,14 +307,42 @@
     const currentQEl = document.getElementById('current-q');
     const totalQEl = document.getElementById('total-q');
 
+    // === LOGIC ===
+
+    function initMenu() {
+        menuView.classList.remove('hidden');
+        quizView.classList.add('hidden');
+        resultView.classList.add('hidden');
+    }
+
+    function startQuiz(batchIdx) {
+        currentBatchIdx = batchIdx;
+        currentQuizData = quizBatches[batchIdx];
+        currentQIdx = 0;
+        score = 0;
+        
+        batchLabel.textContent = batchIdx + 1;
+        totalQEl.textContent = currentQuizData.length;
+
+        menuView.classList.add('hidden');
+        resultView.classList.add('hidden');
+        quizView.classList.remove('hidden');
+        
+        loadQuestion();
+    }
+
+    function retryQuiz() {
+        startQuiz(currentBatchIdx);
+    }
+
     function loadQuestion() {
-        const data = quizData[currentIdx];
+        const data = currentQuizData[currentQIdx];
         questionText.textContent = data.q;
+        
         optionsContainer.innerHTML = '';
         feedback.style.display = 'none';
-        nextBtn.style.display = 'none';
-        currentQEl.textContent = currentIdx + 1;
-        totalQEl.textContent = quizData.length;
+        nextBtn.classList.add('hidden');
+        currentQEl.textContent = currentQIdx + 1;
 
         data.options.forEach((opt, index) => {
             const btn = document.createElement('button');
@@ -239,10 +354,9 @@
     }
 
     function checkAnswer(selectedIndex, btn) {
-        const data = quizData[currentIdx];
+        const data = currentQuizData[currentQIdx];
         const buttons = optionsContainer.getElementsByClassName('btn');
         
-        // Disable all buttons
         Array.from(buttons).forEach(b => b.disabled = true);
 
         if (selectedIndex === data.correct) {
@@ -252,7 +366,7 @@
             score++;
         } else {
             btn.classList.add('wrong');
-            buttons[data.correct].classList.add('correct'); // Show correct answer
+            buttons[data.correct].classList.add('correct');
             feedbackTitle.textContent = "Wrong...";
             feedbackTitle.style.color = "#721c24";
         }
@@ -260,9 +374,9 @@
         feedbackText.textContent = data.rationale;
         feedbackHint.textContent = "Hint: " + data.hint;
         feedback.style.display = 'block';
-        nextBtn.style.display = 'block';
+        nextBtn.classList.remove('hidden');
 
-        if (currentIdx === quizData.length - 1) {
+        if (currentQIdx === currentQuizData.length - 1) {
             nextBtn.textContent = "Show Result";
         } else {
             nextBtn.textContent = "Next Question";
@@ -270,8 +384,8 @@
     }
 
     function nextQuestion() {
-        currentIdx++;
-        if (currentIdx < quizData.length) {
+        currentQIdx++;
+        if (currentQIdx < currentQuizData.length) {
             loadQuestion();
         } else {
             showResult();
@@ -279,15 +393,17 @@
     }
 
     function showResult() {
-        quizView.style.display = 'none';
-        resultView.style.display = 'block';
+        quizView.classList.add('hidden');
+        resultView.classList.remove('hidden');
         document.getElementById('score-val').textContent = score;
-        document.getElementById('score-total').textContent = quizData.length;
+        document.getElementById('score-total').textContent = currentQuizData.length;
 
         const msg = document.getElementById('result-message');
-        if (score === quizData.length) {
-            msg.textContent = "完璧です！あなたはシステムコールの達人です！";
-        } else if (score >= quizData.length * 0.7) {
+        const percentage = score / currentQuizData.length;
+
+        if (percentage === 1) {
+            msg.textContent = "完璧です！システムコールの達人です！";
+        } else if (percentage >= 0.7) {
             msg.textContent = "素晴らしい！あと少しでマスターです。";
         } else {
             msg.textContent = "復習してもう一度チャレンジしましょう！";
@@ -295,7 +411,7 @@
     }
 
     // Initialize
-    loadQuestion();
+    initMenu();
 </script>
 
 </body>
