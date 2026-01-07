@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C System Call Quiz</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+        }
+        .progress {
+            text-align: right;
+            color: #666;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .question {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+            color: #2c3e50;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 1rem;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .btn:hover:not(:disabled) {
+            background-color: #f8f9fa;
+            border-color: #bdc3c7;
+        }
+        .btn.correct {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .btn.wrong {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #e9ecef;
+            display: none;
+        }
+        .feedback-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .hint {
+            font-family: monospace;
+            background: #eee;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: block;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .next-btn {
+            display: none;
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        .next-btn:hover {
+            background-color: #0056b3;
+        }
+        .result-container {
+            text-align: center;
+            display: none;
+        }
+        .score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="quiz-view">
+        <div class="progress">Question <span id="current-q">1</span> / <span id="total-q">10</span></div>
+        <div class="question" id="question-text">ここに問題が表示されます</div>
+        <div class="options" id="options-container">
+            </div>
+        <div class="feedback" id="feedback">
+            <span class="feedback-title" id="feedback-title"></span>
+            <span id="feedback-text"></span>
+            <div class="hint" id="feedback-hint"></div>
+        </div>
+        <button class="next-btn" id="next-btn" onclick="nextQuestion()">Next Question</button>
+    </div>
+
+    <div id="result-view" class="result-container">
+        <h2>Result</h2>
+        <div class="score">Score: <span id="score-val">0</span> / <span id="score-total">0</span></div>
+        <p id="result-message"></p>
+        <button class="next-btn" style="display:block" onclick="location.reload()">Retry</button>
+    </div>
+</div>
+
+<script>
+    // ここにクイズデータを入れます
+    const quizData = [
+        {
+            q: "dup2(oldfd, newfd) において、oldfdとnewfdの値が同じだった場合、どうなる？",
+            options: ["エラーを返す", "何もしないでnewfdを返す", "newfdを一度閉じてから開く", "未定義動作"],
+            correct: 1,
+            rationale: "dup2の特殊な挙動で、自己代入の場合は何もしません。",
+            hint: "man 2 dup2: 'If oldfd is a valid file descriptor, and newfd has the same value as oldfd, then dup2() does nothing...'"
+        },
+        {
+            q: "読み込み側が全て閉じたパイプに対して write() を行うとどうなる？",
+            options: ["writeが待機する", "データが破棄される", "SIGPIPEシグナルが発生する", "エラーコードEAGAINが返る"],
+            correct: 2,
+            rationale: "読み手がいないパイプへの書き込みはプロセスを終了させるSIGPIPEを発生させます。",
+            hint: "man 7 pipe: '...a write(2) will cause a SIGPIPE signal to be generated.'"
+        },
+        {
+            q: "fork() が失敗した場合、親プロセスに返される値は？",
+            options: ["0", "-1", "NULL", "子プロセスのPID"],
+            correct: 1,
+            rationale: "失敗時、子プロセスは作られず、親には -1 が返されます。",
+            hint: "man 2 fork: 'On failure, -1 is returned in the parent...'"
+        },
+        {
+            q: "パイプへの書き込みがアトミック（混ざらない）であることが保証される最大サイズは？",
+            options: ["BUFSIZ", "4096バイト (PIPE_BUF)", "65536バイト", "無制限"],
+            correct: 1,
+            rationale: "PIPE_BUF (Linuxでは通常4096バイト) 以下の書き込みはアトミック性が保証されます。",
+            hint: "man 7 pipe: 'POSIX.1 requires that writes of less than PIPE_BUF bytes must be atomic...'"
+        },
+        {
+            q: "execve() 成功時、プロセスID (PID) はどうなる？",
+            options: ["新しいIDになる", "変更されない", "親と同じになる", "0になる"],
+            correct: 1,
+            rationale: "execはプログラムの中身を入れ替えるだけで、プロセスの器（PID）は変わりません。",
+            hint: "man 3 exec: 'The process ID is preserved.'"
+        },
+        {
+            q: "fork() 直後、ファイルディスクリプタの FD_CLOEXEC フラグはどうなる？",
+            options: ["クリアされる", "常にセットされる", "継承される", "未定義"],
+            correct: 2,
+            rationale: "forkはファイルディスクリプタの状態（フラグ含む）を複製して継承します。",
+            hint: "man 2 fork: 'The close-on-exec flag (FD_CLOEXEC) ... is preserved across a fork(2).'"
+        },
+        {
+            q: "waitpid() で WNOHANG を指定した場合の動作は？",
+            options: ["子が終了するまで待つ", "子を強制終了する", "子が終了してなければ即座に0を返して戻る", "エラーになる"],
+            correct: 2,
+            rationale: "WNOHANGはブロックせずに即座に戻るためのオプションです。",
+            hint: "man 2 wait: 'WNOHANG: return immediately if no child has exited.'"
+        },
+        {
+            q: "Linux 2.6.11以降のデフォルトのパイプ容量は？",
+            options: ["4KB", "16KB", "64KB", "無制限"],
+            correct: 2,
+            rationale: "16ページ分、つまり65,536バイト (64KB) がデフォルトです。",
+            hint: "man 7 pipe: 'pipe capacity is 16 pages...'"
+        }
+    ];
+
+    let currentIdx = 0;
+    let score = 0;
+
+    const quizView = document.getElementById('quiz-view');
+    const resultView = document.getElementById('result-view');
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const feedback = document.getElementById('feedback');
+    const feedbackTitle = document.getElementById('feedback-title');
+    const feedbackText = document.getElementById('feedback-text');
+    const feedbackHint = document.getElementById('feedback-hint');
+    const nextBtn = document.getElementById('next-btn');
+    const currentQEl = document.getElementById('current-q');
+    const totalQEl = document.getElementById('total-q');
+
+    function loadQuestion() {
+        const data = quizData[currentIdx];
+        questionText.textContent = data.q;
+        optionsContainer.innerHTML = '';
+        feedback.style.display = 'none';
+        nextBtn.style.display = 'none';
+        currentQEl.textContent = currentIdx + 1;
+        totalQEl.textContent = quizData.length;
+
+        data.options.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.textContent = opt;
+            btn.onclick = () => checkAnswer(index, btn);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selectedIndex, btn) {
+        const data = quizData[currentIdx];
+        const buttons = optionsContainer.getElementsByClassName('btn');
+        
+        // Disable all buttons
+        Array.from(buttons).forEach(b => b.disabled = true);
+
+        if (selectedIndex === data.correct) {
+            btn.classList.add('correct');
+            feedbackTitle.textContent = "Correct!";
+            feedbackTitle.style.color = "#155724";
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            buttons[data.correct].classList.add('correct'); // Show correct answer
+            feedbackTitle.textContent = "Wrong...";
+            feedbackTitle.style.color = "#721c24";
+        }
+
+        feedbackText.textContent = data.rationale;
+        feedbackHint.textContent = "Hint: " + data.hint;
+        feedback.style.display = 'block';
+        nextBtn.style.display = 'block';
+
+        if (currentIdx === quizData.length - 1) {
+            nextBtn.textContent = "Show Result";
+        } else {
+            nextBtn.textContent = "Next Question";
+        }
+    }
+
+    function nextQuestion() {
+        currentIdx++;
+        if (currentIdx < quizData.length) {
+            loadQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        quizView.style.display = 'none';
+        resultView.style.display = 'block';
+        document.getElementById('score-val').textContent = score;
+        document.getElementById('score-total').textContent = quizData.length;
+
+        const msg = document.getElementById('result-message');
+        if (score === quizData.length) {
+            msg.textContent = "完璧です！あなたはシステムコールの達人です！";
+        } else if (score >= quizData.length * 0.7) {
+            msg.textContent = "素晴らしい！あと少しでマスターです。";
+        } else {
+            msg.textContent = "復習してもう一度チャレンジしましょう！";
+        }
+    }
+
+    // Initialize
+    loadQuestion();
+</script>
+
+</body>
+</html>
